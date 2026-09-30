@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// CORE SYSTEM EVENT (E.g., Tournaments, Workshops)
+// ==========================================
+model Event {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  startAt     DateTime @map("start_at") @db.Timestamp(6)
+  endAt       DateTime @map("end_at") @db.Timestamp(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([startAt])
+  @@map("events")
+}
+
+// ==========================================
+// MODULE: SOCIAL + PLAY SESSION
+// ==========================================
+enum SocialFormat {
+  SOCIAL
+  SINGLES
+}
+
+enum SocialFeeMode {
+  NONE
+  FREE
+  AUTO_SPLIT_TOTAL
+  PER_PERSON
+}
+
+enum SocialGenderPolicy {
+  ANY
+  MALE_ONLY
+  FEMALE_ONLY
+  MIXED_ONLY
+}
+
+enum SocialAgeGroup {
+  ANY
+  JUNIOR
+  ADULT
+  SENIOR
+}
+
+enum SocialHostRole {
+  HOST_ONLY
+  HOST_AND_PLAY
+}
+
+enum SocialStatus {
+  DRAFT // Created but not yet published
+  PUBLISHED // Published and open for joining
+  COMPLETED // Finished
+  CANCELLED // Aborted/Cancelled
+}
+
+enum SocialParticipantStatus {
+  CONFIRMED
+  WAITLISTED
+  ON_HOLD
+  CANCELLED
+}
+
+enum SocialPaymentStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+}
+
+enum ParticipantPaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERPAID
+  REFUNDED
+}
+
+enum SocialTransactionType {
+  PAYMENT
+  REFUND
+}
+
+enum PlaySessionStatus {
+  ACTIVE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PlaySessionParticipantStatus {
+  CONFIRMED
+  WAITLISTED
+  ON_HOLD
+  CANCELLED
+}
+
+model Social {
+  id    String  @id @default(uuid()) @db.Uuid
+  title String  @db.VarChar(200)
+  note  String? @db.Text
+
+  // 1-to-Many relation with Participants
+  participants SocialParticipant[]
+
+  // 1-to-Many relation with Play Sessions
+  playSessions PlaySession[]
+
+  // 1-to-Many relation with Expenses
+  expenses     SocialExpense[]
+
+  // Relations for Completed Stats and Feedback
+  stats     SocialStats?
+  feedbacks SocialFeedback[]
+
+  // Time cache from Play Sessions
+  startTime DateTime? @map("start_time") @db.Timestamp(6)
+  endTime   DateTime? @map("end_time") @db.Timestamp(6)
+
+  // Fee & Payment
+  totalBookingCost     Int     @default(0) @map("total_booking_cost")
+  packageFee           Int?    @map("package_fee")
+  totalExpense         Int     @default(0) @map("total_expense")
+  paymentBankName      String?  @map("payment_bank_name") @db.VarChar(100)
+  paymentAccountName   String?  @map("payment_account_name") @db.VarChar(100)
+  paymentAccountNumber String?  @map("payment_account_number") @db.VarChar(50)
+  paymentQrUrl         String?  @map("payment_qr_url") @db.VarChar(500)
+  paymentNote          String?  @map("payment_note") @db.VarChar(500)
+
+  // Filter Socials
+  hasAvailableSlots Boolean            @default(true) @map("has_available_slots")
+  genderPolicy      SocialGenderPolicy @default(ANY) @map("gender_policy")
+  ageGroup          SocialAgeGroup     @default(ANY) @map("age_group")
+  format            SocialFormat       @default(SOCIAL)
+  submitDupr        Boolean            @default(false) @map("submit_dupr")
+  minimumLevel      Decimal?           @map("minimum_level") @db.Decimal(4, 2)
+  maximumLevel      Decimal?           @map("maximum_level") @db.Decimal(4, 2)
+
+  // Settings
+  isFree                  Boolean        @default(false) @map("is_free")
+  autoApproveJoinRequests Boolean        @default(false) @map("auto_approve_join_requests")
+  hostRole                SocialHostRole @default(HOST_AND_PLAY) @map("host_role")
+  cancellationFreezeHours Int?           @map("cancellation_freeze_hours")
+
+  // Capacity management
+  joinedCount Int @default(0) @map("joined_count")
+
+  // Status
+  status SocialStatus @default(PUBLISHED)
+
+  // The creator ID
+  creatorId String @map("creator_id") @db.Uuid
+
+  // Audit timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Critical indexes for fast querying and filtering
+  @@index([format])
+  @@index([status])
+  @@map("socials")
+}
+
+model SocialParticipant {
+  id String @id @default(uuid()) @db.Uuid
+
+  socialId String @map("social_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+
+  status SocialParticipantStatus @default(CONFIRMED)
+
+  // Fee & Payment
+  totalFee          Int                 @default(0)
+  amountPaid        Int                 @default(0) @map("amount_paid")
+  amountRefunded    Int                 @default(0) @map("amount_refunded")
+  isFullPackage     Boolean             @default(true) @map("is_full_package")
+  paymentStatus     ParticipantPaymentStatus @default(UNPAID) @map("payment_status")
+
+  // Transactions list
+  payments          SocialPayment[]
+
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamp(6)
+
+  isHost Boolean @default(false) @map("is_host")
+
+  // Relation to Social (Cascade delete when the social is removed)
+  social Social @relation(fields: [socialId], references: [id], onDelete: Cascade)
+
+  // VITAL CONSTRAINT: A user can only join a specific social once
+  @@unique([socialId, userId])
+  @@index([userId])
+  @@index([socialId, status, joinedAt])
+  @@map("social_participants")
+}
+
+model SocialPayment {
+  id                  String                @id @default(uuid()) @db.Uuid
+  socialParticipantId String                @map("social_participant_id") @db.Uuid
+  amount              Int                   @map("amount")
+  receiptUrl          String?               @map("receipt_url") @db.Text
+  status              SocialPaymentStatus   @default(PENDING_REVIEW)
+  transactionType     SocialTransactionType @default(PAYMENT) @map("transaction_type")
+  createdById         String                @map("created_by") @db.Uuid
+  verifiedById        String?               @map("verified_by") @db.Uuid
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  socialParticipant   SocialParticipant   @relation(fields: [socialParticipantId], references: [id], onDelete: Cascade)
+
+  @@index([socialParticipantId])
+  @@map("social_payments")
+}
+
+model SocialExpense {
+  id          String   @id @default(uuid()) @db.Uuid
+  socialId    String   @map("social_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  amount      Int      @default(0) @map("amount")
+  receiptUrl  String?  @map("receipt_url") @db.Text
+  expenseDate DateTime @default(now()) @map("expense_date") @db.Timestamp(6)
+  createdById String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  social Social @relation(fields: [socialId], references: [id], onDelete: Cascade)
+
+  @@index([socialId])
+  @@map("social_expenses")
+}
+
+model PlaySession {
+  id       String @id @default(uuid()) @db.Uuid
+  socialId String @map("social_id") @db.Uuid
+  title    String @db.VarChar(200)
+
+  // 1-to-Many relation with Participants
+  participants PlaySessionParticipant[]
+
+  // Capacity management
+  joinedCount Int @default(0) @map("joined_count")
+  maxSlots    Int? @map("max_slots")
+
+  // Court Allocation
+  bookingIds     String[] @map("booking_ids")
+  numberOfCourts Int      @default(1) @map("number_of_courts")
+  courtNames     String?  @map("court_names") @db.VarChar(100)
+  courtSchedule  Json?    @map("court_schedule")
+  location       String?  @db.VarChar(200)
+  centerId       String?  @map("center_id") @db.Uuid
+  centerName     String?  @map("center_name") @db.VarChar(255)
+
+  // Fee & Payment
+  sessionFee     Int @default(0) @map("session_fee")
+
+  // Time & Status
+  startTime DateTime          @map("start_time") @db.Timestamp(6)
+  endTime   DateTime          @map("end_time") @db.Timestamp(6)
+  status    PlaySessionStatus @default(ACTIVE)
+
+  // Audit timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Audit
+  creatorId String @map("creator_id") @db.Uuid
+
+
+
+  // Relation to Social (Cascade delete when the social is removed)
+  social Social @relation(fields: [socialId], references: [id], onDelete: Cascade)
+
+  // Critical indexes for fast querying and filtering
+  @@index([socialId])
+  @@index([startTime])
+  @@index([status])
+  @@map("play_sessions")
+}
+
+model PlaySessionParticipant {
+  id String @id @default(uuid()) @db.Uuid
+
+  playSessionId String                       @map("play_session_id") @db.Uuid
+  // Nullable so walk-up live guests (`isGuest=true`) can sit on the roster
+  // without an auth-service account. Postgres unique constraints treat NULLs
+  // as distinct, so the @@unique([playSessionId, userId]) below still works
+  // and lets multiple guests share a session.
+  userId        String?                      @map("user_id") @db.Uuid
+  status        PlaySessionParticipantStatus @default(CONFIRMED)
+
+  joinedAt DateTime @default(now()) @map("joined_at") @db.Timestamp(6)
+
+  // Relation to PlaySession (Cascade delete when the session is removed)
+  playSession PlaySession @relation(fields: [playSessionId], references: [id], onDelete: Cascade)
+
+  // VITAL CONSTRAINT: A user can only join a specific play session once
+  @@unique([playSessionId, userId])
+  @@index([userId])
+  @@index([playSessionId, status, joinedAt])
+  @@map("play_session_participants")
+}
+
+model SocialStats {
+  id            String   @id @default(uuid()) @db.Uuid
+  socialId      String   @unique @map("social_id") @db.Uuid
+  totalMatches  Int      @default(0) @map("total_matches")
+  activePlayers Int      @default(0) @map("active_players")
+  courtHours    Decimal  @default(0.0) @map("court_hours") @db.Decimal(5, 2)
+  playerStats   Json     @map("player_stats")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  social        Social   @relation(fields: [socialId], references: [id], onDelete: Cascade)
+
+  @@map("social_stats")
+}
+
+model SocialFeedback {
+  id                String   @id @default(uuid()) @db.Uuid
+  socialId          String   @map("social_id") @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  ratingOverall     Int      @map("rating_overall")
+  ratingOrganization Int     @map("rating_organization")
+  ratingVenue       Int      @map("rating_venue")
+  comment           String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  social            Social   @relation(fields: [socialId], references: [id], onDelete: Cascade)
+
+  @@unique([socialId, userId])
+  @@index([socialId])
+  @@map("social_feedbacks")
+}
+

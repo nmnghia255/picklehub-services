@@ -1,0 +1,74 @@
+﻿HƯỚNG DẪN SỬ DỤNG
+
+1. Chạy dự án
+
+Tại thư mục gốc dự án, chạy:
+
+npm run start
+
+Lệnh này sẽ build và chạy toàn bộ hệ thống bằng Docker Compose.
+
+2. Khởi tạo cơ sở dữ liệu
+
+Sau khi các container đã chạy xong, mở terminal mới tại thư mục gốc dự án và chạy:
+
+npm run db:migrate
+
+Nếu muốn có dữ liệu mẫu để kiểm thử nhanh, chạy thêm:
+
+npm run db:seed
+
+3. Truy cập API
+
+API Gateway:
+
+http://localhost:8080
+
+Một số service có thể truy cập trực tiếp:
+- Auth Service: http://localhost:8001
+- User Service: http://localhost:8006
+- Sport Center Service: http://localhost:8007
+- Tournament Service: http://localhost:8008
+- Subscription Service: http://localhost:8012
+- Coach Service: http://localhost:8019
+- Chat Service: http://localhost:8029
+
+Khi kiểm thử, nên gọi API thông qua API Gateway tại http://localhost:8080.
+
+4. Xem log
+
+Xem log toàn bộ hệ thống:
+
+npm run logs
+
+Xem log một service cụ thể:
+
+docker compose logs -f <ten-service>
+
+Ví dụ:
+
+docker compose logs -f auth-service
+
+5. Dừng dự án
+
+Dừng toàn bộ container:
+
+npm run stop
+
+Nếu muốn xóa toàn bộ container, image local và dữ liệu database local:
+
+npm run clean
+
+Lưu ý: npm run clean sẽ xóa dữ liệu database local.
+
+6. Quy trình chạy nhanh
+
+npm install
+copy .env.example .env
+npm run start
+npm run db:migrate
+npm run db:seed
+
+Sau đó kiểm thử API tại:
+
+http://localhost:8080

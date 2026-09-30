@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  SOCIAL
+  TOURNAMENT
+}
+
+enum ParticipantRole {
+  MEMBER
+  OWNER
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  MEDIA
+  SYSTEM
+}
+
+model Conversation {
+  id            String           @id @default(uuid()) @db.Uuid
+  type          ConversationType
+  groupId       String?          @unique @map("group_id") @db.Uuid
+  socialId      String?          @unique @map("social_id") @db.Uuid
+  tournamentId  String?          @unique @map("tournament_id") @db.Uuid
+  directUserAId String?          @map("direct_user_a_id") @db.Uuid
+  directUserBId String?          @map("direct_user_b_id") @db.Uuid
+  lastMessageId String?          @map("last_message_id") @db.Uuid
+  lastMessageAt DateTime?        @map("last_message_at") @db.Timestamp(6)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@unique([directUserAId, directUserBId], name: "conversations_direct_pair_uidx")
+  @@index([type])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id                String          @id @default(uuid()) @db.Uuid
+  conversationId    String          @map("conversation_id") @db.Uuid
+  userId            String          @map("user_id") @db.Uuid
+  role              ParticipantRole @default(MEMBER)
+  joinedAt          DateTime        @default(now()) @map("joined_at") @db.Timestamp(6)
+  lastReadMessageId String?         @map("last_read_message_id") @db.Uuid
+  lastReadAt        DateTime?       @map("last_read_at") @db.Timestamp(6)
+  mutedUntil        DateTime?       @map("muted_until") @db.Timestamp(6)
+  deletedAt         DateTime?       @map("deleted_at") @db.Timestamp(6)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId], name: "conversation_participants_conversation_user_uidx")
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String      @id @default(uuid()) @db.Uuid
+  conversationId String      @map("conversation_id") @db.Uuid
+  senderId       String      @map("sender_id") @db.Uuid
+  type           MessageType @default(TEXT)
+  body           String?     @db.Text
+  mediaUrl       String?     @map("media_url") @db.Text
+  metadata       Json?
+  editedAt       DateTime?   @map("edited_at") @db.Timestamp(6)
+  deletedAt      DateTime?   @map("deleted_at") @db.Timestamp(6)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@index([deletedAt])
+  @@map("messages")
+}

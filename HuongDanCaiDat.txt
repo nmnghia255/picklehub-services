@@ -1,0 +1,49 @@
+﻿HƯỚNG DẪN CÀI ĐẶT
+
+1. Mục đích
+
+Tài liệu này hướng dẫn cài đặt môi trường tối thiểu để chạy và kiểm thử nhanh dự án PickleHub Services từ mã nguồn đã có sẵn.
+
+2. Công cụ cần cài
+
+- Docker Desktop.
+- Node.js 20 LTS hoặc mới hơn.
+- npm, được cài kèm Node.js.
+- Postman, Insomnia hoặc trình duyệt để gọi API.
+
+3. Chuẩn bị mã nguồn
+
+Giải nén hoặc mở thư mục mã nguồn của dự án.
+
+Mở terminal tại thư mục gốc của dự án, nơi có các file:
+- package.json
+- docker-compose.yml
+- .env.example
+- thư mục services
+
+4. Cài đặt dependency
+
+Tại thư mục gốc dự án, chạy:
+
+npm install
+
+5. Cấu hình môi trường
+
+Tạo file .env từ file mẫu:
+
+copy .env.example .env
+
+Nếu dùng Linux/macOS:
+
+cp .env.example .env
+
+Thông thường có thể giữ nguyên cấu hình mặc định trong .env để chạy thử bằng Docker. Nếu cần dùng dịch vụ ngoài như email, cloud storage hoặc payment, cập nhật thêm các API key tương ứng trong file .env.
+
+6. Kiểm tra Docker
+
+Đảm bảo Docker Desktop đang chạy, sau đó kiểm tra:
+
+docker --version
+docker compose version
+
+Nếu hai lệnh trên trả về phiên bản, môi trường đã sẵn sàng để chạy dự án.

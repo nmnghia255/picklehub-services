@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+//  Enums
+// ─────────────────────────────────────────────
+
+enum PlanType {
+  SPORT_CENTER_MANAGER
+  GROUP_OWNER
+  SOCIAL_HOST
+  TOURNAMENT_ORGANIZER
+  COACH
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// ─────────────────────────────────────────────
+//  Plan (the "Gói dịch vụ" template)
+// ─────────────────────────────────────────────
+
+model Plan {
+  id             String       @id @default(uuid()) @db.Uuid
+  type           PlanType
+  billingCycle   BillingCycle @map("billing_cycle")
+  name           String       @db.VarChar(150)
+  description    String?      @db.Text
+  features       String[]     // list of feature bullet points
+  priceVnd       Int          @map("price_vnd")        // price in VND (e.g. 99000)
+  durationInDays Int          @map("duration_in_days") // 30, 90, 365
+  isActive       Boolean      @default(true) @map("is_active")
+  sortOrder      Int          @default(0) @map("sort_order")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  subscriptions  Subscription[]
+
+  @@unique([type, billingCycle], name: "plans_type_cycle_uidx")
+  @@index([type])
+  @@index([isActive])
+  @@map("plans")
+}
+
+// ─────────────────────────────────────────────
+//  Subscription (a user's ownership of a Plan)
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id          String             @id @default(uuid()) @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  planId      String             @map("plan_id") @db.Uuid
+  status      SubscriptionStatus @default(PENDING_PAYMENT)
+  startDate   DateTime?          @map("start_date") @db.Timestamp(6)
+  endDate     DateTime?          @map("end_date") @db.Timestamp(6)
+  autoRenew   Boolean            @default(false) @map("auto_renew")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  plan        Plan               @relation(fields: [planId], references: [id])
+  payments    Payment[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([planId])
+  @@index([status])
+  @@index([endDate])
+  @@map("subscriptions")
+}
+
+// ─────────────────────────────────────────────
+//  Payment (VNPay transaction record)
+// ─────────────────────────────────────────────
+
+model Payment {
+  id               String        @id @default(uuid()) @db.Uuid
+  subscriptionId   String        @map("subscription_id") @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  amountVnd        Int           @map("amount_vnd")
+  status           PaymentStatus @default(PENDING)
+
+  // VNPay fields
+  vnpTxnRef        String        @unique @map("vnp_txn_ref") @db.VarChar(100) // our order ref sent to VNPay
+  vnpTransactionNo String?       @map("vnp_transaction_no") @db.VarChar(100)  // VNPay's transaction ID
+  vnpBankCode      String?       @map("vnp_bank_code") @db.VarChar(20)
+  vnpPayDate       String?       @map("vnp_pay_date") @db.VarChar(20)
+  vnpResponseCode  String?       @map("vnp_response_code") @db.VarChar(10)
+
+  paidAt           DateTime?     @map("paid_at") @db.Timestamp(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  subscription     Subscription  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([userId])
+  @@index([status])
+  @@index([vnpTxnRef])
+  @@map("payments")
+}

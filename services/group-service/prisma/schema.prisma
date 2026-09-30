@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GroupMemberRole {
+  OWNER
+  MEMBER
+}
+
+enum GroupStatus {
+  ACTIVE
+  GRACE_PERIOD
+  FROZEN
+  ARCHIVED
+}
+
+enum GroupActivityType {
+  PRACTICE
+  MEETUP
+  INTERNAL_MATCH
+  MEETING
+  OTHER
+}
+
+enum GroupActivityStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING_REVIEW
+  PAID
+  PARTIALLY_PAID
+  OVERPAID
+}
+
+enum TransactionStatus {
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum EquipmentCondition {
+  NEW
+  GOOD
+  WORN
+  RETIRED
+}
+
+model Group {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  avatarUrl   String?  @map("avatar_url") @db.Text
+  maxMembers  Int      @default(50) @map("max_members")
+  status      GroupStatus @default(ACTIVE)
+  createdById String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  invitations   Invitation[]
+  members       GroupMember[]
+  expenses      GroupExpense[]
+  transactions  GroupTransaction[]
+  activities    GroupActivity[]
+  courtBookings GroupCourtBooking[]
+  equipment     GroupEquipment[]
+  usageLogs     GroupEquipmentUsageLog[]
+  favoriteEquipment   GroupEquipmentFavorite[]
+
+  @@unique([createdById, name], name: "groups_owner_name_uidx")
+  @@index([createdById])
+  @@index([status])
+  @@map("groups")
+}
+
+model GroupPayment {
+  id                String        @id @default(uuid()) @db.Uuid
+  expenseId         String        @map("expense_id") @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  requiredFee       Int           @default(0) @map("required_fee")
+  guestCount        Int           @default(0) @map("guest_count")
+  guestFee          Int           @default(0) @map("guest_fee")
+  amountPaid        Int           @default(0) @map("amount_paid")
+  status            PaymentStatus @default(UNPAID)
+  verifiedById      String?       @map("verified_by") @db.Uuid
+  paidAt            DateTime?     @map("paid_at") @db.Timestamp(6)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  expense GroupExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, userId])
+  @@index([expenseId])
+  @@index([userId])
+  @@index([status])
+  @@map("group_payments")
+}
+
+model GroupExpense {
+  id          String   @id @default(uuid()) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  description String?  @db.Text
+  totalAmount Int      @default(0) @map("total_amount")
+  receiptUrl  String?  @map("receipt_url") @db.Text
+  expenseDate DateTime @default(now()) @map("expense_date") @db.Timestamp(6)
+  createdById String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  group         Group            @relation(fields: [groupId], references: [id])
+  payments      GroupPayment[]
+  equipment     GroupEquipment[]
+  activityId    String?          @map("activity_id") @db.Uuid
+  activity      GroupActivity?   @relation(fields: [activityId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@index([activityId])
+  @@map("group_expenses")
+}
+
+model GroupTransaction {
+  id           String            @id @default(uuid()) @db.Uuid
+  groupId      String            @map("group_id") @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  amount       Int               @map("amount")
+  receiptUrl   String?           @map("receipt_url") @db.Text
+  status       TransactionStatus @default(PENDING_REVIEW)
+  verifiedById String?           @map("verified_by") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@index([groupId, userId])
+  @@index([status])
+  @@map("group_transactions")
+}
+
+model Invitation {
+  id          String   @id @default(uuid()) @db.Uuid
+  inviterId   String   @map("inviter_id") @db.Uuid
+  targetEmail String?  @map("target_email") @db.VarChar(255)
+  groupId     String?  @map("group_id") @db.Uuid
+  tokenHash   String   @unique @map("token_hash") @db.VarChar(64)
+  expiresAt   DateTime @default(dbgenerated("NOW() + INTERVAL '7 days'")) @map("expires_at") @db.Timestamp(6)
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  group   Group? @relation(fields: [groupId], references: [id])
+
+  @@index([inviterId])
+  @@index([targetEmail])
+  @@index([tokenHash])
+  @@index([groupId, targetEmail])
+  @@index([status])
+  @@map("invitations")
+}
+
+model GroupMember {
+  id       String          @id @default(uuid()) @db.Uuid
+  userId   String          @map("user_id") @db.Uuid
+  groupId  String          @map("group_id") @db.Uuid
+  role     GroupMemberRole @default(MEMBER)
+  creditBalance Int           @default(0) @map("credit_balance")
+  joinedAt DateTime        @default(now()) @map("joined_at") @db.Timestamp(6)
+
+  group         Group               @relation(fields: [groupId], references: [id])
+  attendances   SessionAttendance[]
+
+  @@unique([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@index([role])
+  @@map("group_members")
+}
+
+model GroupActivity {
+  id             String              @id @default(uuid()) @db.Uuid
+  groupId        String              @map("group_id") @db.Uuid
+  title          String              @db.VarChar(255)
+  description    String?             @db.Text
+  location       String?             @db.VarChar(255)
+  activityType   GroupActivityType   @default(MEETUP) @map("activity_type")
+  startAt        DateTime            @map("start_at") @db.Timestamp(6)
+  endAt          DateTime            @map("end_at") @db.Timestamp(6)
+  remindAt       DateTime?           @map("remind_at") @db.Timestamp(6)
+  status         GroupActivityStatus @default(SCHEDULED)
+  isReminderSent            Boolean             @default(false) @map("is_reminder_sent")
+  createdById               String              @map("created_by") @db.Uuid
+  cancellationDeadlineHours Int                 @default(12) @map("cancellation_deadline_hours")
+  courtBookingId            String?             @map("court_booking_id") @db.Uuid
+  createdAt                 DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                 DateTime            @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  group        Group              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  courtBooking GroupCourtBooking? @relation(fields: [courtBookingId], references: [id], onDelete: SetNull)
+  attendances  SessionAttendance[]
+  expenses     GroupExpense[]
+
+  @@index([groupId])
+  @@index([startAt])
+  @@index([createdById])
+  @@unique([courtBookingId])
+  @@map("group_activities")
+}
+
+/// Booking sessions linked to a group by the group owner.
+/// bookingItemsSnapshot stores a flat array of per-court-per-time entries
+/// derived at link time from sport-center-service (POST /api/bookings/batch).
+model GroupCourtBooking {
+  id         String   @id @default(uuid()) @db.Uuid
+  groupId    String   @map("group_id") @db.Uuid
+  /// Human-readable label. Auto-generated from date if not provided by owner.
+  title      String   @db.VarChar(200)
+  note       String?  @db.Text
+  /// Owner userId who linked these bookings.
+  linkedById String   @map("linked_by") @db.Uuid
+
+  /// ID of the booking in sport-center-service
+  bookingId String @map("booking_id")
+
+  // ── Stable snapshots (captured at link time) ──────────────────────────────
+  centerId         String?  @map("center_id") @db.Uuid
+  centerName       String?  @map("center_name") @db.VarChar(255)
+  centerAddress    String?  @map("center_address") @db.VarChar(500)
+  /// Sum of totalPrice across all linked bookings.
+  totalBookingCost Int      @default(0) @map("total_booking_cost")
+  /// Booking date (all linked bookings must share the same date).
+  date             DateTime @db.Date
+  /// Earliest startTime across all bookingItems.
+  startTime        DateTime @map("start_time") @db.Timestamp(6)
+  /// Latest endTime across all bookingItems.
+  endTime          DateTime @map("end_time") @db.Timestamp(6)
+
+  /// Flat array of per-court-per-time entries — one entry per BookingItem.
+  /// Each entry: { bookingId, date, courtId, courtName, startTime, endTime }
+  /// Multiple entries for the same court on the same day are kept separate
+  /// (e.g. Court 1 at 08:00–09:00 AND Court 1 at 10:00–11:00 = two rows).
+  bookingItemsSnapshot Json @map("booking_items_snapshot")
+  // ─────────────────────────────────────────────────────────────────────────
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  group      Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  activities GroupActivity[]
+
+  @@index([groupId])
+  @@index([date])
+  @@index([linkedById])
+  @@map("group_court_bookings")
+}
+
+/// Physical equipment owned by the group (e.g. balls, nets).
+/// purchaseCost stores the total box/batch price (not per-unit).
+/// Soft-deleted via deletedAt; rows where deletedAt IS NOT NULL are considered removed.
+model GroupEquipment {
+  id           String             @id @default(uuid()) @db.Uuid
+  groupId      String             @map("group_id") @db.Uuid
+  name         String             @db.VarChar(200)
+  description  String?            @db.Text
+  quantity     Int                @default(1)
+  condition    EquipmentCondition @default(NEW)
+  /// Total purchase cost for the whole batch (e.g. price of a full box of 12 balls).
+  purchaseCost Int                @default(0) @map("purchase_cost")
+  purchasedAt  DateTime           @default(now()) @map("purchased_at") @db.Timestamp(6)
+  /// Optional link to the GroupExpense that funded this purchase.
+  /// Remains even after the equipment is soft-deleted to preserve financial history.
+  expenseId    String?            @map("expense_id") @db.Uuid
+  createdById  String             @map("created_by") @db.Uuid
+  isFavorite   Boolean            @default(false) @map("is_favorite")
+  /// Soft-delete timestamp. NULL = active, non-NULL = deleted.
+  deletedAt    DateTime?          @map("deleted_at") @db.Timestamp(6)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime           @updatedAt      @map("updated_at") @db.Timestamp(6)
+
+  group     Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expense   GroupExpense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  usageLogs GroupEquipmentUsageLog[]
+
+  @@index([groupId])
+  @@index([expenseId])
+  @@index([condition])
+  @@index([deletedAt])
+  @@map("group_equipment")
+}
+
+/// Append-only log of equipment usage by the group owner.
+/// Records how many units were consumed per session.
+/// Cannot be updated or deleted — corrections are added as new log entries.
+model GroupEquipmentUsageLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  groupId      String   @map("group_id") @db.Uuid
+  equipmentId  String   @map("equipment_id") @db.Uuid
+  /// Number of units consumed in this session (must be >= 1).
+  quantityUsed Int      @map("quantity_used")
+  /// Optional free-form note, e.g. "2 balls cracked during session".
+  note         String?  @db.Text
+  /// When the usage actually happened. Owner may backdate this.
+  usedAt       DateTime @default(now()) @map("used_at") @db.Timestamp(6)
+  loggedById   String   @map("logged_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  group     Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  equipment GroupEquipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([equipmentId])
+  @@index([usedAt])
+  @@map("group_equipment_usage_logs")
+}
+
+model SessionAttendance {
+  id                String        @id @default(uuid()) @db.Uuid
+  activityId        String        @map("activity_id") @db.Uuid
+  activity          GroupActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  memberId          String        @map("member_id") @db.Uuid
+  member            GroupMember   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  status            String        @default("ATTENDING") @db.VarChar(50)
+  guestCount        Int           @default(0) @map("guest_count")
+  guestStatus       String?       @map("guest_status") @db.VarChar(50)
+  /// Stores a pending re-request on top of an already-approved guestCount.
+  /// null = no pending change. When host approves this, it overrides guestCount.
+  pendingGuestCount Int?          @map("pending_guest_count")
+  reportedAt        DateTime      @default(now()) @map("reported_at") @db.Timestamp(6)
+  note              String?       @db.Text
+
+  @@unique([activityId, memberId])
+  @@index([activityId])
+  @@index([memberId])
+  @@map("session_attendances")
+}
+
+enum FavoriteQuantityType {
+  ALL
+  NUMBER
+}
+
+model GroupEquipmentFavorite {
+  id                  String               @id @default(uuid()) @db.Uuid
+  groupId             String               @map("group_id") @db.Uuid
+  name                String               @db.VarChar(200)
+  defaultQuantity     Int                  @default(1) @map("default_quantity")
+  defaultQuantityType FavoriteQuantityType @default(NUMBER) @map("default_quantity_type")
+  defaultCondition    EquipmentCondition   @default(NEW) @map("default_condition")
+  defaultCost         Int                  @default(0) @map("default_cost")
+  usageCount          Int                  @default(0) @map("usage_count")
+  isActive            Boolean              @default(true) @map("is_active")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  group               Group                @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, name], name: "group_equipment_favorite_name_uidx")
+  @@index([groupId])
+  @@map("group_equipment_favorites")
+}

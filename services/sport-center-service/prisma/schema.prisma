@@ -1,0 +1,420 @@
+// This is your Prisma schema file for Sport Center Service
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum SportCenterStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CourtType {
+  INDOOR
+  OUTDOOR
+}
+
+enum CourtStatus {
+  ACTIVE
+  MAINTENANCE
+  ARCHIVED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum CreditTransactionType {
+  CANCELLATION_REFUND
+  BOOKING_PAYMENT
+  OWNER_MANUAL_ADJUST
+}
+
+enum PaymentTransactionStatus {
+  PENDING_REVIEW
+  SETTLED
+  REJECTED
+  VOIDED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+}
+
+enum ServiceType {
+  EQUIPMENT_RENTAL
+  COACHING
+  FACILITY_ADD_ON
+}
+
+enum ProductType {
+  BEVERAGE
+  CONSUMABLE
+  EQUIPMENT
+  CLOTHING
+}
+
+// ============================================
+// Models
+// ============================================
+
+/// Sport center aggregate root managed by an owner account from auth-service
+model SportCenter {
+  id          String            @id @default(uuid()) @db.Uuid
+  ownerId     String            @map("owner_id") @db.Uuid
+  name        String            @db.VarChar(255)
+  address     String            @db.VarChar(500)
+  latitude    Decimal?          @map("latitude") @db.Decimal(9, 6)
+  longitude   Decimal?          @map("longitude") @db.Decimal(9, 6)
+  phone       String            @db.VarChar(20)
+  email       String?           @db.VarChar(255)
+  openTime    String            @map("open_time") @db.VarChar(8)
+  closeTime   String            @map("close_time") @db.VarChar(8)
+  basePrice   Decimal           @map("base_price") @db.Decimal(10, 2)
+  status      SportCenterStatus @default(INACTIVE)
+  amenities              String[]          @default([])
+  images                 String[]          @default([])
+  rules                  String[]          @default([])
+  description            String?           @db.Text
+  /// Bank account holder name for payment
+  paymentAccountName     String            @map("payment_account_name") @db.VarChar(255)
+  /// Bank account number for transfer
+  paymentAccountNumber   String            @map("payment_account_number") @db.VarChar(50)
+  /// Bank name (e.g. Techcombank, VietcomBank)
+  paymentBankName        String            @map("payment_bank_name") @db.VarChar(100)
+  /// URL of the owner-uploaded QR code image for payments
+  paymentQrUrl           String?           @map("payment_qr_url") @db.VarChar(500)
+  /// Whether players are allowed to self-cancel a CONFIRMED booking and earn preservation credit
+  allowCancellation      Boolean           @default(true) @map("allow_cancellation")
+  createdAt              DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt              DateTime?         @map("deleted_at") @db.Timestamp(6)
+
+  // Relations
+  courts             Court[]
+  priceSlots         CenterPriceSlot[]
+  services           Service[]
+  products           Product[]
+  bookings           Booking[]
+  paymentTransactions PaymentTransaction[]
+  reviews            Review[]
+  favourites         Favourite[]
+  credits            SportCenterCredit[]
+  cancellationTiers  CancellationTier[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("sport_centers")
+}
+
+/// Child court belonging to a sport center
+model Court {
+  id        String      @id @default(uuid()) @db.Uuid
+  centerId  String      @map("center_id") @db.Uuid
+  name      String      @db.VarChar(100)
+  type      CourtType
+  status    CourtStatus @default(ACTIVE)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  center   SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  bookingItems BookingItem[]
+
+  @@index([centerId])
+  @@index([status])
+  @@map("courts")
+}
+
+/// Price slot for a sport center based on time
+model CenterPriceSlot {
+  id           String   @id @default(uuid()) @db.Uuid
+  centerId     String   @map("center_id") @db.Uuid
+  startTime    String   @map("start_time") @db.VarChar(8) // "HH:MM"
+  endTime      String   @map("end_time") @db.VarChar(8) // "HH:MM"
+  pricePerHour Decimal  @map("price_per_hour") @db.Decimal(10, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  center SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@index([centerId])
+  @@map("center_price_slots")
+}
+
+/// Court booking made by a player
+model Booking {
+  id            String        @id @default(uuid()) @db.Uuid
+  centerId      String        @map("center_id") @db.Uuid
+  playerId      String        @map("player_id") @db.Uuid // from auth-service JWT
+  playerName    String?       @map("player_name") @db.VarChar(255)
+  phoneNumber   String?       @map("phone_number") @db.VarChar(20)
+  date          DateTime      @db.Date // booking date (date only)
+  status        BookingStatus @default(PENDING)
+  totalPrice    Decimal?      @map("total_price") @db.Decimal(10, 2)
+  note          String?       @db.VarChar(500)
+  /// URL of the payment proof image uploaded by the player
+  paymentProofUrl        String?   @map("payment_proof_url") @db.VarChar(500)
+  paymentProofUploadedAt DateTime? @map("payment_proof_uploaded_at") @db.Timestamp(6)
+  /// Amount of sport-center credit applied toward this booking
+  creditApplied          Decimal   @default(0) @map("credit_applied") @db.Decimal(10, 2)
+  /// Cash amount the player still owes after credit is applied
+  paymentRemaining       Decimal   @default(0) @map("payment_remaining") @db.Decimal(10, 2)
+  playSessionId String?       @map("play_session_id") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+  cancelledAt   DateTime?     @map("cancelled_at") @db.Timestamp(6)
+  cancelReason  String?       @map("cancel_reason")
+
+  center SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  // One booking can reserve multiple courts/time ranges in the same center/day.
+  bookingItems BookingItem[]
+
+  // Services and products selected for this booking
+  bookingServices BookingService[]
+  bookingProducts BookingProduct[]
+  paymentTransactions PaymentTransaction[]
+
+  @@index([playerId])
+  @@index([centerId, date])
+  @@index([playSessionId])
+  @@map("bookings")
+}
+
+/// Ledger entry for cash revenue collected against a booking.
+model PaymentTransaction {
+  id             String                   @id @default(uuid()) @db.Uuid
+  bookingId      String                   @unique @map("booking_id") @db.Uuid
+  centerId       String                   @map("center_id") @db.Uuid
+  playerId       String                   @map("player_id") @db.Uuid
+  amount         Decimal                  @db.Decimal(10, 2)
+  method         PaymentMethod
+  status         PaymentTransactionStatus @default(PENDING_REVIEW)
+  proofUrl       String?                  @map("proof_url") @db.VarChar(500)
+  receivedAt     DateTime?                @map("received_at") @db.Timestamp(6)
+  reviewedAt     DateTime?                @map("reviewed_at") @db.Timestamp(6)
+  rejectedAt     DateTime?                @map("rejected_at") @db.Timestamp(6)
+  rejectedReason String?                  @map("rejected_reason") @db.VarChar(255)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime                 @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  booking Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  center  SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@index([centerId])
+  @@index([playerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payment_transactions")
+}
+
+/// A specific court/time-range reserved within a booking.
+model BookingItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @map("booking_id") @db.Uuid
+  courtId   String   @map("court_id") @db.Uuid
+  startTime String   @map("start_time") @db.VarChar(8) // "HH:MM"
+  endTime   String   @map("end_time") @db.VarChar(8) // "HH:MM"
+  itemPrice Decimal  @map("item_price") @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  court   Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([courtId])
+  @@map("booking_items")
+}
+
+/// Service offerings (equipment rental, coaching, etc.) available at a sport center
+model Service {
+  id          String      @id @default(uuid()) @db.Uuid
+  centerId    String      @map("center_id") @db.Uuid
+  name        String      @db.VarChar(255)
+  description String?     @db.Text
+  /// Optional image URL for the service (owner-uploaded)
+  imageUrl    String?     @map("image_url") @db.VarChar(500)
+  type        ServiceType
+  price       Decimal     @db.Decimal(10, 2)
+  unit        String?     @db.VarChar(100)
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt   DateTime?   @map("deleted_at") @db.Timestamp(6)
+
+  center          SportCenter      @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  bookingServices BookingService[]
+
+  @@index([centerId])
+  @@index([isActive])
+  @@map("services")
+}
+
+/// Product offerings (beverages, consumables, etc.) available at a sport center
+model Product {
+  id          String      @id @default(uuid()) @db.Uuid
+  centerId    String      @map("center_id") @db.Uuid
+  name        String      @db.VarChar(255)
+  description String?     @db.Text
+  /// Optional image URL for the product (owner-uploaded)
+  imageUrl    String?     @map("image_url") @db.VarChar(500)
+  type        ProductType
+  price       Decimal     @db.Decimal(10, 2)
+  unit        String?     @db.VarChar(100)
+  stock       Int         @default(0)
+  isActive    Boolean     @default(true) @map("is_active")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt   DateTime?   @map("deleted_at") @db.Timestamp(6)
+
+  center          SportCenter      @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  bookingProducts BookingProduct[]
+
+  @@index([centerId])
+  @@index([isActive])
+  @@map("products")
+}
+
+/// Junction table: Services selected in a booking
+model BookingService {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @map("booking_id") @db.Uuid
+  serviceId String   @map("service_id") @db.Uuid
+  quantity  Int      @default(1)
+  price     Decimal  @db.Decimal(10, 2) // snapshot of price at booking time
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, serviceId])
+  @@index([bookingId])
+  @@index([serviceId])
+  @@map("booking_services")
+}
+
+/// Junction table: Products selected in a booking
+model BookingProduct {
+  id        String   @id @default(uuid()) @db.Uuid
+  bookingId String   @map("booking_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int      @default(1)
+  price     Decimal  @db.Decimal(10, 2) // snapshot of price at booking time
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, productId])
+  @@index([bookingId])
+  @@index([productId])
+  @@map("booking_products")
+}
+
+/// User review for a sport center
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  centerId  String   @map("center_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  rating    Int      @db.SmallInt // 1 to 5
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  center SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@index([centerId])
+  @@index([userId])
+  @@map("reviews")
+}
+
+/// User favourite sport center
+model Favourite {
+  id        String   @id @default(uuid()) @db.Uuid
+  centerId  String   @map("center_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  center SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, centerId])
+  @@index([userId])
+  @@index([centerId])
+  @@map("favourites")
+}
+
+/// Tiered cancellation-refund policy for a sport center.
+/// Each tier means: if the player cancels >= minDaysBeforeStart days before the
+/// booking start time, they earn refundPercent% of totalPrice as credit.
+/// Tiers are evaluated highest-first; if none match, refund = 0%.
+/// Example setup:
+///   { minDaysBeforeStart: 2, refundPercent: 100 }  -> cancel >= 2 days before: 100%
+///   { minDaysBeforeStart: 1, refundPercent: 75  }  -> cancel >= 1 day before : 75%
+///   (anything < 1 day before)                      -> 0%
+model CancellationTier {
+  id                  String   @id @default(uuid()) @db.Uuid
+  centerId            String   @map("center_id") @db.Uuid
+  /// Minimum whole days before booking start required to qualify for this tier
+  minDaysBeforeStart  Int      @map("min_days_before_start")
+  /// Refund percentage awarded as sport-center credit (0–100)
+  refundPercent       Int      @map("refund_percent")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  center SportCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@unique([centerId, minDaysBeforeStart])
+  @@index([centerId])
+  @@map("cancellation_tiers")
+}
+
+/// Sport-center-scoped credit wallet for a player
+model SportCenterCredit {
+  id        String   @id @default(uuid()) @db.Uuid
+  playerId  String   @map("player_id") @db.Uuid
+  centerId  String   @map("center_id") @db.Uuid
+  /// Current credit balance (VND). Always >= 0.
+  balance   Decimal  @default(0) @map("balance") @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  center       SportCenter        @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  transactions CreditTransaction[]
+
+  @@unique([playerId, centerId])
+  @@index([playerId])
+  @@index([centerId])
+  @@map("sport_center_credits")
+}
+
+/// Immutable ledger entry for every credit earn / spend event
+model CreditTransaction {
+  id          String                 @id @default(uuid()) @db.Uuid
+  creditId    String                 @map("credit_id") @db.Uuid
+  /// The booking that triggered this transaction (nullable for manual adjustments)
+  bookingId   String?                @map("booking_id") @db.Uuid
+  /// Positive = earned (refund); Negative = spent (payment)
+  amount      Decimal                @db.Decimal(10, 2)
+  type        CreditTransactionType
+  description String?                @db.VarChar(255)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
+
+  credit SportCenterCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  @@index([creditId])
+  @@index([bookingId])
+  @@map("credit_transactions")
+}

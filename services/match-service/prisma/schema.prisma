@@ -1,0 +1,139 @@
+// Prisma schema for Match Service
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Enums
+// ============================================
+
+/// Category of the match
+enum MatchCategory {
+  SOCIAL
+  TOURNAMENT
+  CUSTOM
+}
+
+/// Lifecycle status of a match
+enum MatchStatus {
+  SCHEDULED       // Created, not yet started
+  LIVE            // In progress — Livescore active
+  PENDING_CONFIRM // Score submitted, waiting for confirmation(s)
+  CONFIRMED       // Fully confirmed — result is final
+  CANCELLED       // Cancelled before or during play
+}
+
+/// Match format / context
+enum MatchType {
+  SINGLES
+  DOUBLES
+  PRACTICE
+}
+
+/// Which team won
+enum WinnerTeam {
+  TEAM_A
+  TEAM_B
+  DRAW
+}
+
+// ============================================
+// Models
+// ============================================
+
+/// A Pickleball match
+model Match {
+  id        String        @id @default(uuid()) @db.Uuid
+  category  MatchCategory @default(CUSTOM)
+  matchType MatchType     @default(PRACTICE) @map("match_type")
+  status    MatchStatus   @default(SCHEDULED)
+
+  /// The number of sets in the match format (e.g. 1, 3, or 5). Defaults to 3.
+  bestOfSets Int @default(3) @map("best_of_sets")
+
+  /// The number of points needed to win a set (e.g. 11, 15, or 21). Defaults to 11.
+  pointsToWin Int @default(11) @map("points_to_win")
+
+  /// ISO datetime when the match is scheduled to start
+  scheduledAt DateTime @map("scheduled_at") @db.Timestamp(6)
+
+  /// Required reference to a court entity (sport-center-service)
+  courtId String @map("court_id") @db.Uuid
+
+  /// Optional reference to a tournament bracket slot (future tournament-service)
+  tournamentId String? @map("tournament_id") @db.Uuid
+
+  /// Optional reference to a play session
+  playSessionId String? @map("play_session_id") @db.Uuid
+
+  // ── Score ──────────────────────────────────────
+  /// Current / final score for team A (total points or last set)
+  scoreA Int @default(0) @map("score_a")
+
+  /// Current / final score for team B
+  scoreB Int @default(0) @map("score_b")
+
+  /// Set-by-set scores stored as JSON array, e.g. [[11,5],[9,11],[11,8]]
+  sets Json? @db.JsonB
+
+  winner WinnerTeam? // null until CONFIRMED
+
+  // ── Relations ─────────────────────────────────────
+  scoreHistory MatchScoreHistory[]
+
+  // ── Participants ─────────────────────────────────
+  /// Team A players (Array of user UUIDs)
+  teamA String[] @map("team_a") @db.Uuid
+
+  /// Team B players
+  teamB String[] @map("team_b") @db.Uuid
+
+  /// Optional referee user ID
+  refereeId String? @map("referee_id") @db.Uuid
+
+  // ── Confirmation flags ─────────────────────────
+  confirmedByA   Boolean @default(false) @map("confirmed_by_a")
+  confirmedByB   Boolean @default(false) @map("confirmed_by_b")
+  confirmedByRef Boolean @default(false) @map("confirmed_by_ref")
+
+  // ── Timestamps ─────────────────────────────────
+  startedAt   DateTime? @map("started_at") @db.Timestamp(6)
+  finishedAt  DateTime? @map("finished_at") @db.Timestamp(6)
+
+  /// UUID của VĐV giao bóng đầu tiên (right-court player của đội thắng toss).
+  /// null = mặc định teamA[0] (TEAM_A giao trước theo quy tắc pickleball).
+  firstServingPlayerId String? @map("first_serving_player_id") @db.Uuid
+
+  createdById String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdById])
+  @@index([courtId])
+  @@index([tournamentId])
+  @@index([playSessionId])
+  @@map("matches")
+}
+
+model MatchScoreHistory {
+  id          String   @id @default(uuid()) @db.Uuid
+  matchId     String   @map("match_id") @db.Uuid
+  setId       Int      @map("set_id")
+  scoringTeam String   @map("scoring_team")
+  pointType   String   @default("NORMAL") @map("point_type")
+  timestamp   DateTime @default(now()) @map("timestamp") @db.Timestamp(6)
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+  @@index([timestamp])
+  @@map("match_score_history")
+}

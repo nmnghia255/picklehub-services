@@ -1,0 +1,808 @@
+services:
+  # PostgreSQL Database for Subscription Service
+  postgres-subscription:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-subscription
+    environment:
+      - POSTGRES_USER=${SUBSCRIPTION_DB_USER}
+      - POSTGRES_PASSWORD=${SUBSCRIPTION_DB_PASSWORD}
+      - POSTGRES_DB=${SUBSCRIPTION_DB_NAME}
+    ports:
+      - "${SUBSCRIPTION_DB_PORT:-5442}:5432"
+    volumes:
+      - postgres-subscription-data:/var/lib/postgresql/data
+    networks:
+      - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${SUBSCRIPTION_DB_USER} -d ${SUBSCRIPTION_DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Database for Friend Service
+  postgres-friend:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-friend
+    environment:
+    - POSTGRES_USER=${FRIEND_DB_USER}
+    - POSTGRES_PASSWORD=${FRIEND_DB_PASSWORD}
+    - POSTGRES_DB=${FRIEND_DB_NAME}
+    ports:
+    - ${FRIEND_DB_PORT:-5441}:5432
+    volumes:
+    - postgres-friend-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${FRIEND_DB_USER} -d ${FRIEND_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-auth
+    environment:
+    - POSTGRES_USER=${AUTH_DB_USER}
+    - POSTGRES_PASSWORD=${AUTH_DB_PASSWORD}
+    - POSTGRES_DB=${AUTH_DB_NAME}
+    ports:
+    - ${AUTH_DB_PORT:-5432}:5432
+    volumes:
+    - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-notification:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-notification
+    environment:
+    - POSTGRES_USER=${NOTIFICATION_DB_USER}
+    - POSTGRES_PASSWORD=${NOTIFICATION_DB_PASSWORD}
+    - POSTGRES_DB=${NOTIFICATION_DB_NAME}
+    ports:
+    - ${NOTIFICATION_DB_PORT:-5433}:5432
+    volumes:
+    - postgres-notification-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${NOTIFICATION_DB_USER} -d ${NOTIFICATION_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-group:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-group
+    environment:
+    - POSTGRES_USER=${GROUP_DB_USER}
+    - POSTGRES_PASSWORD=${GROUP_DB_PASSWORD}
+    - POSTGRES_DB=${GROUP_DB_NAME}
+    ports:
+    - ${GROUP_DB_PORT:-5434}:5432
+    volumes:
+    - postgres-group-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${GROUP_DB_USER} -d ${GROUP_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-event:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-event
+    environment:
+    - POSTGRES_USER=${EVENT_DB_USER}
+    - POSTGRES_PASSWORD=${EVENT_DB_PASSWORD}
+    - POSTGRES_DB=${EVENT_DB_NAME}
+    ports:
+    - ${EVENT_DB_PORT:-5435}:5432
+    volumes:
+    - postgres-event-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${EVENT_DB_USER} -d ${EVENT_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-match:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-match
+    environment:
+    - POSTGRES_USER=${MATCH_DB_USER}
+    - POSTGRES_PASSWORD=${MATCH_DB_PASSWORD}
+    - POSTGRES_DB=${MATCH_DB_NAME}
+    ports:
+    - ${MATCH_DB_PORT:-5436}:5432
+    volumes:
+    - postgres-match-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${MATCH_DB_USER} -d ${MATCH_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-user:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-user
+    environment:
+    - POSTGRES_USER=${USER_DB_USER}
+    - POSTGRES_PASSWORD=${USER_DB_PASSWORD}
+    - POSTGRES_DB=${USER_DB_NAME}
+    ports:
+    - ${USER_DB_PORT:-5437}:5432
+    volumes:
+    - postgres-user-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${USER_DB_USER} -d ${USER_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-sport-center:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-sport-center
+    environment:
+    - POSTGRES_USER=${SPORT_CENTER_DB_USER}
+    - POSTGRES_PASSWORD=${SPORT_CENTER_DB_PASSWORD}
+    - POSTGRES_DB=${SPORT_CENTER_DB_NAME}
+    ports:
+    - ${SPORT_CENTER_DB_PORT:-5438}:5432
+    volumes:
+    - postgres-sport-center-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${SPORT_CENTER_DB_USER} -d ${SPORT_CENTER_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: picklehub-auth-service-dev
+    command: npm run start:dev
+    ports:
+    - ${AUTH_SERVICE_PORT:-8001}:8001
+    environment:
+    - AUTH_SERVICE_PORT=8001
+    - NODE_ENV=development
+    - DATABASE_URL=${AUTH_DATABASE_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+    - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
+    - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - GROUP_SERVICE_URL=${GROUP_SERVICE_URL}
+    - TOURNAMENT_SERVICE_URL=${TOURNAMENT_SERVICE_URL}
+    - FRONTEND_URL=${FRONTEND_URL}
+    - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID}
+    - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
+    - FACEBOOK_APP_ID=${FACEBOOK_APP_ID}
+    - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
+    volumes:
+    - ./services/auth-service/src:/app/src
+    - ./services/auth-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/auth-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/auth-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+  group-service:
+    build:
+      context: ./services/group-service
+      dockerfile: Dockerfile
+    container_name: picklehub-group-service-dev
+    command: npm run start:dev
+    ports:
+    - ${GROUP_SERVICE_PORT:-8003}:8003
+    environment:
+    - PORT=8003
+    - NODE_ENV=development
+    - DATABASE_URL=${GROUP_DATABASE_URL}
+    - REDIS_HOST=${REDIS_HOST:-redis}
+    - REDIS_PORT=${REDIS_PORT:-6379}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - FRONTEND_URL=${FRONTEND_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SPORT_CENTER_SERVICE_URL=http://sport-center-service:8007
+    - CHAT_SERVICE_URL=http://chat-service:8029
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    volumes:
+    - ./services/group-service/src:/app/src
+    - ./services/group-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/group-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/group-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-group:
+        condition: service_healthy
+      notification-service:
+        condition: service_started
+  match-service:
+    build:
+      context: ./services/match-service
+      dockerfile: Dockerfile
+    container_name: picklehub-match-service-dev
+    command: npm run start:dev
+    ports:
+    - ${MATCH_SERVICE_PORT:-8005}:8005
+    environment:
+      - PORT=8005
+      - NODE_ENV=development
+      - DATABASE_URL=${MATCH_DATABASE_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - SPORT_CENTER_SERVICE_URL=${SPORT_CENTER_SERVICE_URL}
+      - TOURNAMENT_SERVICE_URL=http://tournament-service:8008
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+    volumes:
+    - ./services/match-service/src:/app/src
+    - ./services/match-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/match-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/match-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-match:
+        condition: service_healthy
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: picklehub-user-service-dev
+    command: npm run start:dev
+    ports:
+    - ${USER_SERVICE_PORT:-8006}:8006
+    environment:
+    - PORT=8006
+    - NODE_ENV=development
+    - UV_THREADPOOL_SIZE=8
+    - DATABASE_URL=${USER_DATABASE_URL}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - COACH_SERVICE_URL=http://coach-service:8019
+    - SPORT_CENTER_SERVICE_URL=http://sport-center-service:8007
+    - EVENT_SERVICE_URL=http://event-service:8004
+    - MATCH_SERVICE_URL=http://match-service:8005
+    - TOURNAMENT_SERVICE_URL=http://tournament-service:8008
+    volumes:
+    - ./services/user-service/src:/app/src
+    - ./services/user-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/user-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/user-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: picklehub-notification-service-dev
+    command: npm run start:dev
+    ports:
+    - ${NOTIFICATION_SERVICE_PORT:-8002}:8002
+    environment:
+    - PORT=8002
+    - NODE_ENV=development
+    - DATABASE_URL=${NOTIFICATION_DATABASE_URL}
+    - RESEND_API_KEY=${RESEND_API_KEY}
+    - EMAIL_FROM=${EMAIL_FROM}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - EXPO_ACCESS_TOKEN=${EXPO_ACCESS_TOKEN}
+    volumes:
+    - ./services/notification-service/src:/app/src
+    - ./services/notification-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/notification-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/notification-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+  event-service:
+    build:
+      context: ./services/event-service
+      dockerfile: Dockerfile
+    container_name: picklehub-event-service-dev
+    command: npm run start:dev
+    ports:
+    - ${EVENT_SERVICE_PORT:-8004}:8004
+    environment:
+      - PORT=8004
+      - NODE_ENV=development
+      - DATABASE_URL=${EVENT_DATABASE_URL}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - GROUP_SERVICE_URL=${GROUP_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - SPORT_CENTER_SERVICE_URL=${SPORT_CENTER_SERVICE_URL}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - MATCH_SERVICE_URL=${MATCH_SERVICE_URL}
+      - CHAT_SERVICE_URL=http://chat-service:8029
+      - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    volumes:
+    - ./services/event-service/src:/app/src
+    - ./services/event-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/event-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/event-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-event:
+        condition: service_healthy
+  sport-center-service:
+    build:
+      context: ./services/sport-center-service
+      dockerfile: Dockerfile
+    container_name: picklehub-sport-center-service-dev
+    command: npm run start:dev
+    ports:
+    - ${SPORT_CENTER_SERVICE_PORT:-8007}:8007
+    environment:
+    - PORT=8007
+    - NODE_ENV=development
+    - DATABASE_URL=${SPORT_CENTER_DATABASE_URL}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - MEDIA_SERVICE_URL=${MEDIA_SERVICE_URL:-http://media-service:8011}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - MAX_SPORT_CENTERS_PER_OWNER=${MAX_SPORT_CENTERS_PER_OWNER}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    volumes:
+    - ./services/sport-center-service/src:/app/src
+    - ./services/sport-center-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/sport-center-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/sport-center-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-sport-center:
+        condition: service_healthy
+
+  # Subscription Service
+  subscription-service:
+    build:
+      context: ./services/subscription-service
+      dockerfile: Dockerfile
+    container_name: picklehub-subscription-service-dev
+    command: npm run start:dev
+    ports:
+      - "${SUBSCRIPTION_SERVICE_PORT:-8012}:8012"
+    environment:
+      - PORT=8012
+      - NODE_ENV=development
+      - DATABASE_URL=${SUBSCRIPTION_DATABASE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
+      - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
+      - VNPAY_BASE_URL=${VNPAY_BASE_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+    volumes:
+      - ./services/subscription-service/src:/app/src
+      - ./services/subscription-service/prisma:/app/prisma
+    develop:
+      watch:
+        - action: sync
+          path: ./services/subscription-service/src
+          target: /app/src
+        - action: rebuild
+          path: ./services/subscription-service/package.json
+    networks:
+      - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-subscription:
+        condition: service_healthy
+
+  postgres-coach:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-coach-dev
+    environment:
+      POSTGRES_USER: ${COACH_DB_USER:-coachuser}
+      POSTGRES_PASSWORD: ${COACH_DB_PASSWORD:-coachpass}
+      POSTGRES_DB: ${COACH_DB_NAME:-coachdb}
+    ports:
+      - "${COACH_DB_PORT:-5453}:5432"
+    volumes:
+      - postgres-coach-data:/var/lib/postgresql/data
+    networks:
+      - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COACH_DB_USER:-coachuser} -d ${COACH_DB_NAME:-coachdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-chat:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-chat-dev
+    environment:
+      POSTGRES_USER: ${CHAT_DB_USER:-chatuser}
+      POSTGRES_PASSWORD: ${CHAT_DB_PASSWORD:-chatpass}
+      POSTGRES_DB: ${CHAT_DB_NAME:-chatdb}
+    ports:
+      - "${CHAT_DB_PORT:-5463}:5432"
+    volumes:
+      - postgres-chat-data:/var/lib/postgresql/data
+    networks:
+      - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHAT_DB_USER:-chatuser} -d ${CHAT_DB_NAME:-chatdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  coach-service:
+    build:
+      context: ./services/coach-service
+      dockerfile: Dockerfile
+    container_name: picklehub-coach-service-dev
+    command: npm run start:dev
+    ports:
+      - "${COACH_SERVICE_PORT:-8019}:8019"
+    environment:
+      - PORT=8019
+      - NODE_ENV=development
+      - DATABASE_URL=${COACH_DATABASE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8002
+      - SPORT_CENTER_SERVICE_URL=http://sport-center-service:8007
+      - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    volumes:
+      - ./services/coach-service/src:/app/src
+      - ./services/coach-service/prisma:/app/prisma
+    develop:
+      watch:
+        - action: sync
+          path: ./services/coach-service/src
+          target: /app/src
+        - action: rebuild
+          path: ./services/coach-service/package.json
+    networks:
+      - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-coach:
+        condition: service_healthy
+
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    container_name: picklehub-chat-service-dev
+    command: npm run start:dev
+    ports:
+      - "${CHAT_SERVICE_PORT:-8029}:8029"
+    environment:
+      - PORT=8029
+      - NODE_ENV=development
+      - DATABASE_URL=${CHAT_DATABASE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - FRIEND_SERVICE_URL=${FRIEND_SERVICE_URL}
+      - GROUP_SERVICE_URL=${GROUP_SERVICE_URL}
+      - EVENT_SERVICE_URL=${EVENT_SERVICE_URL}
+      - TOURNAMENT_SERVICE_URL=${TOURNAMENT_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+    volumes:
+      - ./services/chat-service/src:/app/src
+      - ./services/chat-service/prisma:/app/prisma
+    develop:
+      watch:
+        - action: sync
+          path: ./services/chat-service/src
+          target: /app/src
+        - action: rebuild
+          path: ./services/chat-service/package.json
+    networks:
+      - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-chat:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      friend-service:
+        condition: service_started
+      group-service:
+        condition: service_started
+      event-service:
+        condition: service_started
+      tournament-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: picklehub-api-gateway
+    ports:
+    - ${API_GATEWAY_PORT:-8080}:80
+    volumes:
+    - ./services/api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+    - auth-service
+    - group-service
+    - notification-service
+    - event-service
+    - match-service
+    - user-service
+    - sport-center-service
+    - friend-service
+    - media-service
+    - subscription-service
+    - tournament-service
+    - coach-service
+    - chat-service
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+  friend-service:
+    build:
+      context: ./services/friend-service
+      dockerfile: Dockerfile
+    container_name: picklehub-friend-service-dev
+    command: npm run start:dev
+    ports:
+    - ${FRIEND_SERVICE_PORT:-8010}:8010
+    environment:
+    - PORT=8010
+    - NODE_ENV=development
+    - DATABASE_URL=${FRIEND_DATABASE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    volumes:
+    - ./services/friend-service/src:/app/src
+    - ./services/friend-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/friend-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/friend-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-friend:
+        condition: service_healthy
+  media-service:
+    build:
+      context: ./services/media-service
+      dockerfile: Dockerfile
+    container_name: picklehub-media-service-dev
+    command: npm run start:dev
+    ports:
+    - ${MEDIA_SERVICE_PORT:-8011}:8011
+    environment:
+    - MEDIA_SERVICE_PORT=8011
+    - NODE_ENV=development
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+    - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+    - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    volumes:
+    - ./services/media-service/src:/app/src
+    develop:
+      watch:
+      - action: sync
+        path: ./services/media-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/media-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8011/api/media/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  redis:
+    image: redis:7-alpine
+    container_name: picklehub-redis
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+    - ${REDIS_PORT:-6379}:6379
+    volumes:
+    - redis-data:/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+  postgres-tournament:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-tournament
+    environment:
+    - POSTGRES_USER=${TOURNAMENT_DB_USER}
+    - POSTGRES_PASSWORD=${TOURNAMENT_DB_PASSWORD}
+    - POSTGRES_DB=${TOURNAMENT_DB_NAME}
+    ports:
+    - ${TOURNAMENT_DB_PORT:-5439}:5432
+    volumes:
+    - postgres-tournament-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${TOURNAMENT_DB_USER} -d ${TOURNAMENT_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  tournament-service:
+    build:
+      context: ./services/tournament-service
+      dockerfile: Dockerfile
+    container_name: picklehub-tournament-service-dev
+    command: npm run start:dev
+    ports:
+    - ${TOURNAMENT_SERVICE_PORT:-8008}:8008
+    environment:
+    - PORT=8008
+    - NODE_ENV=development
+    - DATABASE_URL=${TOURNAMENT_DATABASE_URL}
+    - FRONTEND_URL=${FRONTEND_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - MATCH_SERVICE_URL=${MATCH_SERVICE_URL}
+    - SPORT_CENTER_SERVICE_URL=${SPORT_CENTER_SERVICE_URL}
+    - MEDIA_SERVICE_URL=${MEDIA_SERVICE_URL}
+    - USER_SERVICE_URL=http://user-service:8006
+    - AUTH_SERVICE_URL=http://auth-service:8001
+    - NOTIFICATION_SERVICE_URL=http://notification-service:8002
+    - CHAT_SERVICE_URL=http://chat-service:8029
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    volumes:
+    - ./services/tournament-service/src:/app/src
+    - ./services/tournament-service/prisma:/app/prisma
+    develop:
+      watch:
+      - action: sync
+        path: ./services/tournament-service/src
+        target: /app/src
+      - action: rebuild
+        path: ./services/tournament-service/package.json
+    networks:
+    - picklehub-network
+    restart: unless-stopped
+    depends_on:
+      postgres-tournament:
+        condition: service_healthy
+networks:
+  picklehub-network:
+    driver: bridge
+volumes:
+  postgres-auth-data:
+    driver: local
+  postgres-notification-data:
+    driver: local
+  postgres-group-data:
+    driver: local
+  postgres-event-data:
+    driver: local
+  postgres-match-data:
+    driver: local
+  postgres-user-data:
+    driver: local
+  postgres-sport-center-data:
+    driver: local
+  postgres-friend-data:
+    driver: local
+  postgres-subscription-data:
+    driver: local
+  redis-data:
+    driver: local
+  postgres-tournament-data:
+    driver: local
+  postgres-coach-data:
+    driver: local
+  postgres-chat-data:
+    driver: local

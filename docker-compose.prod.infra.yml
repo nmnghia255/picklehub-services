@@ -1,0 +1,343 @@
+services:
+  postgres-subscription:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${SUBSCRIPTION_DB_USER}
+      - POSTGRES_PASSWORD=${SUBSCRIPTION_DB_PASSWORD}
+      - POSTGRES_DB=${SUBSCRIPTION_DB_NAME}
+    volumes:
+      - postgres-subscription-data:/var/lib/postgresql/data
+    networks:
+      - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${SUBSCRIPTION_DB_USER} -d ${SUBSCRIPTION_DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-friend:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${FRIEND_DB_USER}
+    - POSTGRES_PASSWORD=${FRIEND_DB_PASSWORD}
+    - POSTGRES_DB=${FRIEND_DB_NAME}
+    volumes:
+    - postgres-friend-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${FRIEND_DB_USER} -d ${FRIEND_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-auth:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${AUTH_DB_USER}
+    - POSTGRES_PASSWORD=${AUTH_DB_PASSWORD}
+    - POSTGRES_DB=${AUTH_DB_NAME}
+    volumes:
+    - postgres-auth-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${AUTH_DB_USER} -d ${AUTH_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-notification:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${NOTIFICATION_DB_USER}
+    - POSTGRES_PASSWORD=${NOTIFICATION_DB_PASSWORD}
+    - POSTGRES_DB=${NOTIFICATION_DB_NAME}
+    volumes:
+    - postgres-notification-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${NOTIFICATION_DB_USER} -d ${NOTIFICATION_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-group:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${GROUP_DB_USER}
+    - POSTGRES_PASSWORD=${GROUP_DB_PASSWORD}
+    - POSTGRES_DB=${GROUP_DB_NAME}
+    volumes:
+    - postgres-group-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${GROUP_DB_USER} -d ${GROUP_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-event:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${EVENT_DB_USER}
+    - POSTGRES_PASSWORD=${EVENT_DB_PASSWORD}
+    - POSTGRES_DB=${EVENT_DB_NAME}
+    volumes:
+    - postgres-event-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${EVENT_DB_USER} -d ${EVENT_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-sport-center:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${SPORT_CENTER_DB_USER}
+    - POSTGRES_PASSWORD=${SPORT_CENTER_DB_PASSWORD}
+    - POSTGRES_DB=${SPORT_CENTER_DB_NAME}
+    volumes:
+    - postgres-sport-center-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${SPORT_CENTER_DB_USER} -d ${SPORT_CENTER_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-match:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${MATCH_DB_USER}
+    - POSTGRES_PASSWORD=${MATCH_DB_PASSWORD}
+    - POSTGRES_DB=${MATCH_DB_NAME}
+    volumes:
+    - postgres-match-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${MATCH_DB_USER} -d ${MATCH_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-user:
+    image: postgres:16-alpine
+    environment:
+    - POSTGRES_USER=${USER_DB_USER}
+    - POSTGRES_PASSWORD=${USER_DB_PASSWORD}
+    - POSTGRES_DB=${USER_DB_NAME}
+    volumes:
+    - postgres-user-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${USER_DB_USER} -d ${USER_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+    - redis-data:/data
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-coach:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-coach
+    environment:
+    - POSTGRES_USER=${COACH_DB_USER}
+    - POSTGRES_PASSWORD=${COACH_DB_PASSWORD}
+    - POSTGRES_DB=${COACH_DB_NAME}
+    volumes:
+    - postgres-coach-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${COACH_DB_USER} -d ${COACH_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-chat:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-chat
+    environment:
+    - POSTGRES_USER=${CHAT_DB_USER}
+    - POSTGRES_PASSWORD=${CHAT_DB_PASSWORD}
+    - POSTGRES_DB=${CHAT_DB_NAME}
+    volumes:
+    - postgres-chat-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${CHAT_DB_USER} -d ${CHAT_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  postgres-tournament:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres-tournament
+    environment:
+    - POSTGRES_USER=${TOURNAMENT_DB_USER}
+    - POSTGRES_PASSWORD=${TOURNAMENT_DB_PASSWORD}
+    - POSTGRES_DB=${TOURNAMENT_DB_NAME}
+    volumes:
+    - postgres-tournament-data:/var/lib/postgresql/data
+    networks:
+    - picklehub-network
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${TOURNAMENT_DB_USER} -d ${TOURNAMENT_DB_NAME}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+networks:
+  picklehub-network:
+    name: picklehub-network
+    external: true
+volumes:
+  postgres-auth-data:
+    name: picklehub_postgres_auth_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-notification-data:
+    name: picklehub_postgres_notification_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-group-data:
+    name: picklehub_postgres_group_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-event-data:
+    name: picklehub_postgres_event_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-match-data:
+    name: picklehub_postgres_match_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-user-data:
+    name: picklehub_postgres_user_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-sport-center-data:
+    name: picklehub_postgres_sport_center_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-friend-data:
+    name: picklehub_postgres_friend_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  postgres-subscription-data:
+    name: picklehub_postgres_subscription_data
+    labels:
+      com.picklehub.managed: 'true'
+      com.picklehub.role: database
+  redis-data:
+    driver: local
+  postgres-tournament-data:
+    driver: local
+  postgres-coach-data:
+    driver: local
+  postgres-chat-data:
+    driver: local

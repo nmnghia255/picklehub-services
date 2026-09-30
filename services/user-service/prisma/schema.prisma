@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PreferredHand {
+  RIGHT
+  LEFT
+  AMBIDEXTROUS
+}
+
+model User {
+  id                 String   @id @db.Uuid
+  fullName           String?  @map("full_name") @db.VarChar(50)
+  avatarUrl          String?  @map("avatar_url") @db.VarChar(2048)
+  bio                String?  @db.VarChar(255)
+  gender             Gender?
+  selfRating         Float    @default(2.5) @map("self_rating")
+  preferredHand      PreferredHand? @map("preferred_hand")
+  phoneNumber        String?  @map("phone_number") @db.VarChar(20)
+  address            String?  @db.VarChar(255)
+  city               String?  @map("city") @db.VarChar(100)
+  district           String?  @map("district") @db.VarChar(100)
+  latitude           Decimal? @map("latitude") @db.Decimal(9, 6)
+  longitude          Decimal? @map("longitude") @db.Decimal(9, 6)
+
+  duprProfile DuprProfile?
+
+  @@map("users")
+}
+
+model DuprProfile {
+  id            String  @id @db.Uuid
+  userId        String  @unique @map("user_id") @db.Uuid
+  duprId        String  @unique @map("dupr_id") @db.VarChar(100)
+
+  rating        Float?
+  singlesRating Float?  @map("singles_rating")
+  doublesRating Float?  @map("doubles_rating")
+
+  lastSyncedAt DateTime? @map("last_synced_at") @db.Timestamp()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([duprId])
+  @@map("dupr_profiles")
+}

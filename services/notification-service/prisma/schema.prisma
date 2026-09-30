@@ -1,0 +1,88 @@
+// This is your Prisma schema file for Notification Service
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Models
+// ============================================
+
+/// Email logs table
+/// Audit trail for sent emails
+model EmailLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  recipient    String   @db.VarChar(255)
+  templateId   String   @map("template_id") @db.VarChar(100)
+  status       String   @db.VarChar(20) // 'SENT', 'FAILED', 'QUEUED'
+  errorMessage String?  @map("error_message") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([recipient])
+  @@index([status])
+  @@index([createdAt])
+  @@map("email_logs")
+}
+
+model AppNotification {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  message     String   @db.Text
+  metadata    Json?
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("app_notifications")
+}
+
+model GroupFeedNotification {
+  id          String   @id @default(uuid()) @db.Uuid
+  groupId     String   @map("group_id") @db.Uuid
+  title       String   @db.VarChar(255)
+  message     String   @db.Text
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([groupId])
+  @@index([createdAt])
+  @@map("group_feed_notifications")
+}
+
+/// Stores Expo push tokens for each user device.
+/// One user can have multiple tokens (multiple devices).
+/// Token is unique — re-registering the same token from the same or different login is safe (upsert).
+model DevicePushToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(500)
+  platform  String?  @db.VarChar(20) // 'android' | 'ios'
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([userId])
+  @@map("device_push_tokens")
+}
+
+/// Stores Expo push ticket IDs returned after sending a push notification.
+/// A background cron job reads unchecked tickets older than 15 min,
+/// fetches their receipts from Expo, and handles errors like DeviceNotRegistered.
+model PushTicket {
+  id        String    @id @default(uuid()) @db.Uuid
+  ticketId  String    @unique @map("ticket_id") @db.VarChar(255)
+  token     String    @db.VarChar(500)
+  checkedAt DateTime? @map("checked_at") @db.Timestamp(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([checkedAt])
+  @@index([createdAt])
+  @@map("push_tickets")
+}

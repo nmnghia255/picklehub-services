@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────
+//  Enums
+// ─────────────────────────────────────
+
+enum CoachStatus {
+  DRAFT     // hidden from public listing
+  ACTIVE    // discoverable by all users
+  SUSPENDED // admin-suspended
+}
+
+/// UI-only badge. Never blocks any coach feature.
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+}
+
+enum ClassStatus {
+  DRAFT
+  OPEN
+  FULL
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+/// Shared payment status for both ClassEnrollment and PrivateBooking
+enum PaymentStatus {
+  PENDING_PROOF    // enrolled/booked but no proof uploaded yet
+  PENDING_REVIEW   // proof uploaded, coach hasn't settled
+  SETTLED          // coach confirmed payment received
+  REJECTED         // coach rejected proof (learner must re-upload)
+}
+
+enum BookingStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+
+
+// ─────────────────────────────────────
+//  Coach Profile
+// ─────────────────────────────────────
+
+model CoachProfile {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @map("user_id") @db.Uuid
+  displayName        String             @db.VarChar(100)
+  bio                String?            @db.Text
+  avatarUrl          String?            @map("avatar_url") @db.VarChar(500)
+  level              String?            @db.VarChar(50)
+  yearsExperience    Int?               @map("years_experience")
+  specialties        String[]
+  languages          String[]
+  locationCity       String?            @map("location_city") @db.VarChar(100)
+  hourlyRateVnd      Int?               @map("hourly_rate_vnd")
+
+  // Bank info — same pattern as SportCenter
+  paymentAccountName   String           @map("payment_account_name") @db.VarChar(255)
+  paymentAccountNumber String           @map("payment_account_number") @db.VarChar(50)
+  paymentBankName      String           @map("payment_bank_name") @db.VarChar(100)
+  paymentQrUrl         String?          @map("payment_qr_url") @db.VarChar(500)
+
+  status             CoachStatus        @default(DRAFT)
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  certifications  CoachCertification[]
+  classes         CoachClass[]
+  privateBookings PrivateBooking[]
+  reviews         CoachReview[]
+  recommendations CoachRecommendation[]
+
+  @@index([status])
+  @@index([locationCity])
+  @@map("coach_profiles")
+}
+
+// ─────────────────────────────────────
+//  Certifications (badge only)
+// ─────────────────────────────────────
+
+model CoachCertification {
+  id                   String             @id @default(uuid()) @db.Uuid
+  coachProfileId       String             @map("coach_profile_id") @db.Uuid
+  name                 String             @db.VarChar(200)
+  issuingOrganization  String?            @map("issuing_organization") @db.VarChar(200)
+  issuedAt             DateTime?          @map("issued_at") @db.Timestamp(6)
+  expiresAt            DateTime?          @map("expires_at") @db.Timestamp(6)
+  documentUrl          String?            @map("document_url") @db.VarChar(500)
+  verificationStatus   VerificationStatus @default(PENDING) @map("verification_status")
+  reviewedByUserId     String?            @map("reviewed_by_user_id") @db.Uuid
+  reviewNote           String?            @map("review_note") @db.Text
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  coachProfile CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@index([coachProfileId])
+  @@index([verificationStatus])
+  @@map("coach_certifications")
+}
+
+// ─────────────────────────────────────
+//  Phase 2A: Coach Class (Group)
+// ─────────────────────────────────────
+
+model CoachClass {
+  id                  String      @id @default(uuid()) @db.Uuid
+  coachProfileId      String      @map("coach_profile_id") @db.Uuid
+  title               String      @db.VarChar(200)
+  description         String?     @db.Text
+  level               String?     @db.VarChar(50)
+  capacity            Int
+  enrolledCount       Int         @default(0) @map("enrolled_count")
+  priceVnd            Int         @map("price_vnd")
+  locationDescription String?     @map("location_description") @db.VarChar(300)
+  coverImageUrl       String?     @map("cover_image_url") @db.VarChar(500)
+  status              ClassStatus @default(DRAFT)
+  startDate           DateTime?   @map("start_date") @db.Timestamp(6)
+  endDate             DateTime?   @map("end_date") @db.Timestamp(6)
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  coachProfile CoachProfile      @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+  schedules    ClassSchedule[]
+  enrollments  ClassEnrollment[]
+
+  @@index([coachProfileId])
+  @@index([status])
+  @@map("coach_classes")
+}
+
+/// Individual session occurrences within a class (e.g. every Saturday 7-9pm = 1 row per occurrence)
+model ClassSchedule {
+  id              String   @id @default(uuid()) @db.Uuid
+  classId         String   @map("class_id") @db.Uuid
+  scheduledAt     DateTime @map("scheduled_at") @db.Timestamp(6)
+  durationMinutes Int      @map("duration_minutes")
+  topic           String?  @db.VarChar(200)                      // session learning goal / subject
+  note            String?  @db.Text                               // logistics reminder (equipment, court, etc.)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Location override — one of two modes (overrides coachClass.locationDescription if set):
+  locationDescription String? @map("location_description") @db.VarChar(300) // free-text venue override for this session
+  courtBookingId      String? @map("court_booking_id") @db.Uuid              // linked sport-center booking ID (for ownership validation)
+  courtId             String? @map("court_id") @db.Uuid                      // specific court — used for address enrichment at read-time
+  courtCostVnd        Int?    @map("court_cost_vnd")                         // snapshotted court rental fee from sport-center booking
+
+  coachClass CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId])
+  @@index([scheduledAt])
+  @@map("class_schedules")
+}
+
+/// Learner enrollment in a CoachClass. Auto-confirmed at creation, payment follows.
+model ClassEnrollment {
+  id              String           @id @default(uuid()) @db.Uuid
+  classId         String           @map("class_id") @db.Uuid
+  learnerId       String           @map("learner_id") @db.Uuid
+  status          EnrollmentStatus @default(ACTIVE)
+  paymentStatus   PaymentStatus    @default(PENDING_PROOF) @map("payment_status")
+  amountVnd       Int              @map("amount_vnd")
+  paymentProofUrl String?          @map("payment_proof_url") @db.VarChar(500)
+  proofUploadedAt DateTime?        @map("proof_uploaded_at") @db.Timestamp(6)
+  settledAt       DateTime?        @map("settled_at") @db.Timestamp(6)
+  enrolledAt      DateTime         @default(now()) @map("enrolled_at") @db.Timestamp(6)
+  cancelledAt     DateTime?        @map("cancelled_at") @db.Timestamp(6)
+
+  coachClass CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, learnerId])
+  @@index([learnerId])
+  @@index([classId, status])
+  @@index([paymentStatus])
+  @@map("class_enrollments")
+}
+
+// ─────────────────────────────────────
+//  Phase 2B: Private Booking (1-on-1)
+// ─────────────────────────────────────
+
+/// A learner's 1-on-1 session request to a specific coach.
+model PrivateBooking {
+  id              String        @id @default(uuid()) @db.Uuid
+  coachProfileId  String        @map("coach_profile_id") @db.Uuid
+  learnerId       String        @map("learner_id") @db.Uuid
+  sessionAt       DateTime      @map("session_at") @db.Timestamp(6)        // desired/confirmed session start time
+  durationMinutes Int           @map("duration_minutes")
+  priceVnd        Int           @map("price_vnd")              // snapshotted from hourlyRateVnd at creation
+  status          BookingStatus @default(PENDING_CONFIRMATION)
+  paymentStatus   PaymentStatus? @map("payment_status")              // null until coach confirms; PENDING_PROOF once confirmed
+  learnerNote     String?       @map("learner_note") @db.Text
+  coachNote       String?       @map("coach_note") @db.Text
+  cancelReason    String?       @map("cancel_reason") @db.Text
+  paymentProofUrl String?       @map("payment_proof_url") @db.VarChar(500)
+  proofUploadedAt DateTime?     @map("proof_uploaded_at") @db.Timestamp(6)
+  settledAt       DateTime?     @map("settled_at") @db.Timestamp(6)
+  completedAt     DateTime?     @map("completed_at") @db.Timestamp(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Location — one of two modes (free-text OR linked court from sport-center-service):
+  locationDescription String? @map("location_description") @db.VarChar(300) // free-text venue (coach's own facility)
+  courtBookingId      String? @map("court_booking_id") @db.Uuid              // linked sport-center booking ID (for ownership validation)
+  courtId             String? @map("court_id") @db.Uuid                      // specific court — used for address enrichment at read-time
+  courtCostVnd        Int?    @map("court_cost_vnd")                         // snapshotted court rental fee from sport-center booking
+
+  coachProfile CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@index([coachProfileId])
+  @@index([learnerId])
+  @@index([status])
+  @@index([sessionAt])
+  @@map("private_bookings")
+}
+
+// ─────────────────────────────────────
+//  Phase 3: Reviews & Recommendations
+// ─────────────────────────────────────
+
+model CoachReview {
+  id             String       @id @default(uuid()) @db.Uuid
+  coachProfileId String       @map("coach_profile_id") @db.Uuid
+  reviewerId     String       @map("reviewer_id") @db.Uuid
+  rating         Int          // 1–5
+  comment        String?      @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+
+  coachProfile   CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([coachProfileId, reviewerId])
+  @@index([coachProfileId])
+  @@map("coach_reviews")
+}
+
+model CoachRecommendation {
+  id              String       @id @default(uuid()) @db.Uuid
+  coachProfileId  String       @map("coach_profile_id") @db.Uuid
+  recommenderId   String       @map("recommender_id") @db.Uuid
+  recommendedToId String       @map("recommended_to_id") @db.Uuid
+  message         String?      @db.Text
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+
+  coachProfile    CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@index([coachProfileId])
+  @@index([recommendedToId])
+  @@map("coach_recommendations")
+}

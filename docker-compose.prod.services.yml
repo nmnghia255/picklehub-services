@@ -1,0 +1,470 @@
+services:
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - AUTH_SERVICE_PORT=8001
+    - NODE_ENV=production
+    - DATABASE_URL=${AUTH_DATABASE_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+    - JWT_ACCESS_EXPIRATION=${JWT_ACCESS_EXPIRATION}
+    - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - GROUP_SERVICE_URL=${GROUP_SERVICE_URL}
+    - TOURNAMENT_SERVICE_URL=${TOURNAMENT_SERVICE_URL}
+    - FRONTEND_URL=${FRONTEND_URL}
+    - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    - GOOGLE_ANDROID_CLIENT_ID=${GOOGLE_ANDROID_CLIENT_ID}
+    - GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID}
+    - FACEBOOK_APP_ID=${FACEBOOK_APP_ID}
+    - FACEBOOK_APP_SECRET=${FACEBOOK_APP_SECRET}
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8001/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  group-service:
+    build:
+      context: ./services/group-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - PORT=8003
+    - NODE_ENV=production
+    - DATABASE_URL=${GROUP_DATABASE_URL}
+    - REDIS_HOST=${REDIS_HOST:-redis}
+    - REDIS_PORT=${REDIS_PORT:-6379}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - FRONTEND_URL=${FRONTEND_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SPORT_CENTER_SERVICE_URL=http://sport-center-service:8007
+    - CHAT_SERVICE_URL=http://chat-service:8029
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8003/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  match-service:
+    build:
+      context: ./services/match-service
+      dockerfile: Dockerfile.prod
+    environment:
+      - PORT=8005
+      - NODE_ENV=production
+      - DATABASE_URL=${MATCH_DATABASE_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - SPORT_CENTER_SERVICE_URL=${SPORT_CENTER_SERVICE_URL}
+      - TOURNAMENT_SERVICE_URL=http://tournament-service:8008
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8005/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  sport-center-service:
+    build:
+      context: ./services/sport-center-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - PORT=${SPORT_CENTER_SERVICE_PORT}
+    - NODE_ENV=production
+    - DATABASE_URL=${SPORT_CENTER_DATABASE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - MEDIA_SERVICE_URL=${MEDIA_SERVICE_URL:-http://media-service:8011}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - MAX_SPORT_CENTERS_PER_OWNER=${MAX_SPORT_CENTERS_PER_OWNER}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:${SPORT_CENTER_SERVICE_PORT:-8007}/health || exit
+        1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - PORT=8002
+    - NODE_ENV=production
+    - DATABASE_URL=${NOTIFICATION_DATABASE_URL}
+    - RESEND_API_KEY=${RESEND_API_KEY}
+    - EMAIL_FROM=${EMAIL_FROM}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - EXPO_ACCESS_TOKEN=${EXPO_ACCESS_TOKEN}
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8002/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  event-service:
+    build:
+      context: ./services/event-service
+      dockerfile: Dockerfile.prod
+    environment:
+      - PORT=8004
+      - NODE_ENV=production
+      - DATABASE_URL=${EVENT_DATABASE_URL}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - GROUP_SERVICE_URL=${GROUP_SERVICE_URL}
+      - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - SPORT_CENTER_SERVICE_URL=${SPORT_CENTER_SERVICE_URL}
+      - USER_SERVICE_URL=${USER_SERVICE_URL}
+      - MATCH_SERVICE_URL=${MATCH_SERVICE_URL}
+      - CHAT_SERVICE_URL=http://chat-service:8029
+      - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8004/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  friend-service:
+    build:
+      context: ./services/friend-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - PORT=${FRIEND_SERVICE_PORT}
+    - NODE_ENV=production
+    - DATABASE_URL=${FRIEND_DATABASE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:${FRIEND_SERVICE_PORT:-8010}/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - PORT=${USER_SERVICE_PORT}
+    - NODE_ENV=production
+    - UV_THREADPOOL_SIZE=8
+    - DATABASE_URL=${USER_DATABASE_URL}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - COACH_SERVICE_URL=http://coach-service:8019
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - SPORT_CENTER_SERVICE_URL=http://sport-center-service:8007
+    - EVENT_SERVICE_URL=http://event-service:8004
+    - MATCH_SERVICE_URL=http://match-service:8005
+    - TOURNAMENT_SERVICE_URL=http://tournament-service:8008
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:${USER_SERVICE_PORT:-8006}/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  media-service:
+    build:
+      context: ./services/media-service
+      dockerfile: Dockerfile.prod
+    environment:
+    - MEDIA_SERVICE_PORT=${MEDIA_SERVICE_PORT}
+    - NODE_ENV=production
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+    - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+    - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    networks:
+    - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:${MEDIA_SERVICE_PORT:-8011}/api/media/health ||
+        exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  subscription-service:
+    build:
+      context: ./services/subscription-service
+      dockerfile: Dockerfile.prod
+    environment:
+      - PORT=8012
+      - NODE_ENV=production
+      - DATABASE_URL=${SUBSCRIPTION_DATABASE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+      - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
+      - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
+      - VNPAY_BASE_URL=${VNPAY_BASE_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+    networks:
+      - picklehub-network
+    restart: always
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8012/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  coach-service:
+    build:
+      context: ./services/coach-service
+      dockerfile: Dockerfile.prod
+    container_name: picklehub-coach-service-prod
+    environment:
+    - PORT=${COACH_SERVICE_PORT:-8019}
+    - NODE_ENV=production
+    - DATABASE_URL=${COACH_DATABASE_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - NOTIFICATION_SERVICE_URL=http://notification-service:8002
+    - SPORT_CENTER_SERVICE_URL=http://sport-center-service:8007
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    networks:
+    - picklehub-network
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:${COACH_SERVICE_PORT:-8019}/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile.prod
+    container_name: picklehub-chat-service-prod
+    environment:
+    - PORT=${CHAT_SERVICE_PORT:-8029}
+    - NODE_ENV=production
+    - DATABASE_URL=${CHAT_DATABASE_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    - FRIEND_SERVICE_URL=${FRIEND_SERVICE_URL}
+    - GROUP_SERVICE_URL=${GROUP_SERVICE_URL}
+    - EVENT_SERVICE_URL=${EVENT_SERVICE_URL}
+    - TOURNAMENT_SERVICE_URL=${TOURNAMENT_SERVICE_URL}
+    - NOTIFICATION_SERVICE_URL=${NOTIFICATION_SERVICE_URL}
+    - REDIS_HOST=${REDIS_HOST:-redis}
+    - REDIS_PORT=${REDIS_PORT:-6379}
+    networks:
+    - picklehub-network
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:${CHAT_SERVICE_PORT:-8029}/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      friend-service:
+        condition: service_healthy
+      group-service:
+        condition: service_healthy
+      event-service:
+        condition: service_healthy
+      tournament-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+  tournament-service:
+    build:
+      context: ./services/tournament-service
+      dockerfile: Dockerfile.prod
+    container_name: picklehub-tournament-service-prod
+    environment:
+    - PORT=8008
+    - NODE_ENV=production
+    - DATABASE_URL=${TOURNAMENT_DATABASE_URL}
+    - FRONTEND_URL=${FRONTEND_URL}
+    - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+    - SERVICE_INTERNAL_TOKEN=${SERVICE_INTERNAL_TOKEN}
+    - MATCH_SERVICE_URL=${MATCH_SERVICE_URL}
+    - SPORT_CENTER_SERVICE_URL=${SPORT_CENTER_SERVICE_URL}
+    - MEDIA_SERVICE_URL=${MEDIA_SERVICE_URL}
+    - USER_SERVICE_URL=http://user-service:8006
+    - AUTH_SERVICE_URL=http://auth-service:8001
+    - NOTIFICATION_SERVICE_URL=http://notification-service:8002
+    - CHAT_SERVICE_URL=http://chat-service:8029
+    - SUBSCRIPTION_SERVICE_URL=http://subscription-service:8012
+    networks:
+    - picklehub-network
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8008/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+    - 8081-8082:80
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://127.0.0.1/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+    - picklehub-network
+    - coolify
+    restart: always
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      group-service:
+        condition: service_healthy
+      event-service:
+        condition: service_healthy
+      match-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      sport-center-service:
+        condition: service_healthy
+      friend-service:
+        condition: service_healthy
+      media-service:
+        condition: service_healthy
+      subscription-service:
+        condition: service_healthy
+      coach-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      tournament-service:
+        condition: service_healthy
+    deploy:
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
+networks:
+  picklehub-network:
+    name: picklehub-network
+    external: true
+  coolify:
+    external: true

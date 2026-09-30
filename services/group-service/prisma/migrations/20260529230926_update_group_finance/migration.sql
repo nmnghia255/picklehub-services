@@ -1,0 +1,14 @@
+-- No-op placeholder.
+--
+-- The original migration.sql for `20260529230926_update_group_finance` was lost
+-- (the directory was committed empty / the file was never tracked in git), which
+-- caused Prisma error P3015 on `migrate status`.
+--
+-- This migration is recorded as applied in `_prisma_migrations`, and its effects
+-- are fully superseded by the following migration `20260530084032_update_finance`,
+-- which rebuilds the finance schema from the `20260520155542_group_finance`
+-- baseline (drops `amount`, adds `required_amount`, casts Decimal -> Integer, etc.).
+-- The current database schema contains no trace of this migration's changes.
+--
+-- It is intentionally empty so the migration history stays intact and fresh-database
+-- deploys produce an identical final schema.
